@@ -1,4 +1,5 @@
 usd-gem-vault.lovable.app
+
 The problem:
 
 Every metaverse platform today is an island. You build in one tool, you're stuck in one world. There's no standard way to take a 3D scene — something you've already built — and put it into a live, shared metaverse space. The Open Metaverse is supposed to fix that, but the tooling doesn't exist yet.
