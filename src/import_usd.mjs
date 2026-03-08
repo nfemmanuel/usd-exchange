@@ -1,66 +1,144 @@
-// Orchestrate USD->MSF import by calling Python mapping and then MSF writer.
+// Pipeline entry point: USD file -> Python mapper -> MSF fabric writer
+// Also serves public/meshes/ as static HTTPS so the fabric can load .glb resourceReferences.
 
-import { spawn } from "node:child_process";
-import { once } from "node:events";
-import { fileURLToPath } from "node:url";
-import { dirname, resolve } from "node:path";
-import { loadOrCreateIdentity } from "./did_stub.mjs";
+import { spawn } from "child_process";
+import { readFileSync, existsSync } from "fs";
+import { createServer } from "https";
+import { readFile } from "fs/promises";
+import path from "path";
+import { fileURLToPath } from "url";
 import { writePrims } from "./msf_writer.mjs";
+import { loadOrCreateIdentity } from "./did_stub.mjs";
 
-const DEFAULT_FABRIC_URL = "https://localhost:2000/fabric/";
-const DEFAULT_ADMIN_KEY = "localdevpassword";
-const PROJECT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const IDENTITY_PATH = resolve(PROJECT_ROOT, ".identity.json");
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const PROJECT_ROOT = path.resolve(__dirname, "..");
 
-async function readStream(stream) {
-  let output = "";
-  for await (const chunk of stream) {
-    output += chunk.toString();
+const FABRIC_URL = "https://localhost:2000/fabric/";
+const ADMIN_KEY = "localdevpassword";
+const MESH_SERVER_PORT = 2001; // separate port for our static .glb server
+const STATIC_BASE_URL = `https://localhost:${MESH_SERVER_PORT}/meshes`;
+
+// SSL cert reuse from MSF_Map_Svc (self-signed, same host)
+const SSL_KEY = path.join(PROJECT_ROOT, "MSF_Map_Svc", "dist", "ssl", "server.key");
+const SSL_CERT = path.join(PROJECT_ROOT, "MSF_Map_Svc", "dist", "ssl", "server.cert");
+
+function startMeshServer() {
+  if (!existsSync(SSL_KEY) || !existsSync(SSL_CERT)) {
+    console.warn("[MESH_SVC] SSL certs not found, skipping static mesh server.");
+    return null;
   }
-  return output;
-}
 
-function parseMapperOutput(rawOutput) {
-  try {
-    return JSON.parse(rawOutput);
-  } catch (error) {
-    throw new Error(`Failed to parse mapper JSON: ${error instanceof Error ? error.message : String(error)}`);
-  }
-}
+  const options = {
+    key: readFileSync(SSL_KEY),
+    cert: readFileSync(SSL_CERT),
+  };
 
-async function runMapper(usdaPath) {
-  const child = spawn("python", ["scripts/run_mapper.py", usdaPath], {
-    stdio: ["ignore", "pipe", "pipe"],
+  const server = createServer(options, async (req, res) => {
+    // Only serve /meshes/*.glb
+    const url = req.url || "/";
+    if (!url.startsWith("/meshes/")) {
+      res.writeHead(404);
+      res.end("Not found");
+      return;
+    }
+    const filename = path.basename(url);
+    const filePath = path.join(PROJECT_ROOT, "public", "meshes", filename);
+    try {
+      const data = await readFile(filePath);
+      res.writeHead(200, {
+        "Content-Type": "model/gltf-binary",
+        "Access-Control-Allow-Origin": "*",
+      });
+      res.end(data);
+    } catch {
+      res.writeHead(404);
+      res.end("Not found");
+    }
   });
-  const stdoutPromise = readStream(child.stdout);
-  const stderrPromise = readStream(child.stderr);
-  const [exitCode] = await once(child, "close");
-  const [stdout, stderr] = await Promise.all([stdoutPromise, stderrPromise]);
-  if (stderr) {
-    process.stderr.write(stderr);
-  }
-  if (exitCode !== 0) {
-    throw new Error(`Mapper process failed with exit code ${exitCode}`);
-  }
-  return parseMapperOutput(stdout);
+
+  server.listen(MESH_SERVER_PORT, () => {
+    console.log(`[MESH_SVC] Serving .glb files at https://localhost:${MESH_SERVER_PORT}/meshes/`);
+  });
+
+  return server;
+}
+
+function runMapper(usdPath) {
+  return new Promise((resolve, reject) => {
+    const scriptPath = path.join(PROJECT_ROOT, "scripts", "run_mapper.py");
+    const proc = spawn("python", [scriptPath, usdPath], { cwd: PROJECT_ROOT });
+
+    let stdout = "";
+    let stderr = "";
+    proc.stdout.on("data", (d) => (stdout += d.toString()));
+    proc.stderr.on("data", (d) => {
+      const line = d.toString();
+      stderr += line;
+      process.stderr.write(line);
+    });
+
+    proc.on("close", (code) => {
+      if (code !== 0) {
+        reject(new Error(`Mapper exited with code ${code}\n${stderr}`));
+        return;
+      }
+      try {
+        // Extract JSON array from stdout (may have [USD]/[MAP] log lines mixed in)
+        const jsonMatch = stdout.match(/(\[[\s\S]*\])\s*$/);
+        if (!jsonMatch) throw new Error("No JSON array found in mapper output");
+        resolve(JSON.parse(jsonMatch[1]));
+      } catch (e) {
+        reject(new Error(`Failed to parse mapper output: ${e.message}\n${stdout}`));
+      }
+    });
+  });
 }
 
 async function main() {
-  const usdaPath = process.argv[2];
-  if (!usdaPath) {
-    throw new Error("Usage: node src/import_usd.mjs <usda_path>");
+  const usdPath = process.argv[2];
+  if (!usdPath) {
+    console.error("Usage: node src/import_usd.mjs <path/to/file.usd>");
+    process.exit(1);
   }
-  console.log(`[PIPELINE] Starting import: ${usdaPath}`);
-  const mappedObjects = await runMapper(usdaPath);
-  console.log(`[PIPELINE] Read ${mappedObjects.length} objects from USD`);
-  const identity = loadOrCreateIdentity(IDENTITY_PATH);
+
+  const absUsdPath = path.resolve(usdPath);
+  console.log(`[PIPELINE] Starting import: ${usdPath}`);
+
+  // Start static mesh server
+  const meshServer = startMeshServer();
+
+  // Run Python pipeline
+  const msfObjects = await runMapper(absUsdPath);
+  console.log(`[PIPELINE] Read ${msfObjects.length} objects from USD`);
+
+  // Log which objects have mesh references
+  for (const obj of msfObjects) {
+    if (obj.resourceReference) {
+      console.log(`[PIPELINE] Mesh asset: ${obj.name} -> ${obj.resourceReference}`);
+    }
+  }
+
+  // Load DID identity
+  const identityPath = path.join(PROJECT_ROOT, ".identity.json");
+  const identity = await loadOrCreateIdentity(identityPath);
+  console.log(`[DID] Loaded identity: ${identity.did}`);
   console.log(`[PIPELINE] Author identity: ${identity.did}`);
-  await writePrims(mappedObjects, DEFAULT_FABRIC_URL, DEFAULT_ADMIN_KEY, identity);
+
+  // Write to fabric
+  await writePrims(msfObjects, FABRIC_URL, ADMIN_KEY, identity);
+
+  // Shut down mesh server cleanly
+  if (meshServer) {
+    meshServer.close(() => {
+      console.log("[MESH_SVC] Stopped.");
+    });
+  }
+
   console.log("[PIPELINE] Import complete.");
+  process.exit(0);
 }
 
-main().catch((error) => {
-  const message = error instanceof Error ? error.message : String(error);
-  console.error(`[PIPELINE] ERROR: ${message}`);
+main().catch((err) => {
+  console.error("[PIPELINE] Fatal error:", err);
   process.exit(1);
 });
