@@ -13,6 +13,7 @@ node_modules/
 # Environment
 .env
 .env.local
+.identity.json
 
 # SSL certs
 *.key
@@ -27,7 +28,6 @@ Thumbs.db
 .vscode/settings.json
 .history/
 *.swp
-
 
 
 

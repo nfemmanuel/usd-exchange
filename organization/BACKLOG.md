@@ -21,26 +21,26 @@ This backlog tracks the development of the USD Exchange tool for the Open Metave
 ### 1.2 Repo Setup
 - [x] 1.2.1 Clone Manifolder, ManifolderClient, ManifolderMCP
 - [x] 1.2.2 Get a local fabric server running
-- [ ] 1.2.3 Confirm ManifolderClient can connect to it
+- [x] 1.2.3 Confirm ManifolderClient can connect to it
 
 ---
 
 ## Epic 2: Research Spike
 
 ### 2.1 USD Traversal
-- [ ] 2.1.1 Load a sample `.usda` file
-- [ ] 2.1.2 Traverse the prim tree
-- [ ] 2.1.3 Extract transforms (position, rotation, scale) from a prim
-- [ ] 2.1.4 Identify how meshes and metadata are stored
+- [x] 2.1.1 Load a sample `.usda` file
+- [x] 2.1.2 Traverse the prim tree
+- [x] 2.1.3 Extract transforms (position, rotation, scale) from a prim
+- [x] 2.1.4 Identify how meshes and metadata are stored
 
 ### 2.2 MSF Schema Mapping
-- [ ] 2.2.1 Read Manifolder source to understand the map service object structure
-- [ ] 2.2.2 Document what fields an MSF object has
-- [ ] 2.2.3 Identify the minimum viable fields needed for a basic import
+- [x] 2.2.1 Read Manifolder source to understand the map service object structure
+- [x] 2.2.2 Document what fields an MSF object has
+- [x] 2.2.3 Identify the minimum viable fields needed for a basic import
 
 ### 2.3 ManifolderClient API
-- [ ] 2.3.1 Read ManifolderClient docs/source
-- [ ] 2.3.2 Understand how to write an object to a fabric
+- [x] 2.3.1 Read ManifolderClient docs/source
+- [x] 2.3.2 Understand how to write an object to a fabric
 - [ ] 2.3.3 Understand how updates/deletes work (idempotency)
 
 ---
@@ -48,19 +48,19 @@ This backlog tracks the development of the USD Exchange tool for the Open Metave
 ## Epic 3: Core Import Pipeline
 
 ### 3.1 USD Reader
-- [ ] 3.1.1 Traverse stage and collect all mesh prims
-- [ ] 3.1.2 Extract transform per prim
-- [ ] 3.1.3 Apply scale unit conversion (cm → m)
-- [ ] 3.1.4 Filter out non-importable prims (cameras, lights, render settings)
+- [x] 3.1.1 Traverse stage and collect all mesh prims
+- [x] 3.1.2 Extract transform per prim
+- [x] 3.1.3 Apply scale unit conversion (cm → m)
+- [x] 3.1.4 Filter out non-importable prims (cameras, lights, render settings)
 
 ### 3.2 Mapping Layer
-- [ ] 3.2.1 Define a neutral internal object schema (USD prim → intermediate representation)
-- [ ] 3.2.2 Map intermediate representation → MSF object
+- [x] 3.2.1 Define a neutral internal object schema (USD prim → intermediate representation)
+- [x] 3.2.2 Map intermediate representation → MSF object
 - [ ] 3.2.3 Handle prim naming / unique ID generation
 
 ### 3.3 MSF Writer
-- [ ] 3.3.1 Write a single object to a running fabric
-- [ ] 3.3.2 Write a full scene (batch)
+- [x] 3.3.1 Write a single object to a running fabric
+- [x] 3.3.2 Write a full scene (batch)
 - [ ] 3.3.3 Idempotent update (re-import same scene, no duplicates)
 
 ---
@@ -68,20 +68,20 @@ This backlog tracks the development of the USD Exchange tool for the Open Metave
 ## Epic 4: DID Stub (Auth)
 
 ### 4.1 Author Identity
-- [ ] 4.1.1 Generate a simple keypair per "author"
-- [ ] 4.1.2 Sign each write operation with author key
-- [ ] 4.1.3 Fabric write layer rejects unsigned payloads
-- [ ] 4.1.4 Log author attribution per object
+- [x] 4.1.1 Generate a simple keypair per "author"
+- [x] 4.1.2 Sign each write operation with author key
+- [x] 4.1.3 Fabric write layer rejects unsigned payloads
+- [x] 4.1.4 Log author attribution per object
 
 ---
 
 ## Epic 5: Demo & Presentation
 
 ### 5.1 Sample USD File
-- [ ] 5.1.1 Find or create a simple `.usda` test scene (a few objects with transforms)
+- [x] 5.1.1 Find or create a simple `.usda` test scene (a few objects with transforms)
 
 ### 5.2 Demo Script
-- [ ] 5.2.1 CLI or simple UI to trigger import
+- [x] 5.2.1 CLI or simple UI to trigger import
 - [ ] 5.2.2 Show before/after in Manifolder visualizer
 
 ### 5.3 Pitch

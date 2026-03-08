@@ -1,0 +1,28 @@
+#usda 1.0
+
+def Xform "World" {
+    def Xform "Building" {
+        double3 xformOp:translate = (10, 0, 5)
+        float3 xformOp:rotateXYZ = (0, 45, 0)
+        float3 xformOp:scale = (1, 1, 1)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+
+        def Mesh "Roof" {
+            double3 xformOp:translate = (0, 3, 0)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Mesh "Walls" {
+            double3 xformOp:translate = (0, 0, 0)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+    }
+
+    def Xform "Tree" {
+        double3 xformOp:translate = (-5, 0, 2)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+
+        def Mesh "Trunk" {
+        }
+    }
+}

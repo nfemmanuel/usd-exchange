@@ -3,6 +3,7 @@ import { createManifolderPromiseClient } from '../vendor/ManifolderClient/Manifo
 
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 globalThis.__manifolderUnsafeHosts.add('localhost');
+globalThis.__manifolderUnsafeHosts.add('localhost:2000');
 
 const client = createManifolderPromiseClient();
 
